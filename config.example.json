@@ -1,0 +1,49 @@
+{
+  "_comment": "Copy this file to config.json and edit. Each 'watch' is one Craigslist search to poll repeatedly. The safest way to get a URL is to go to https://chicago.craigslist.org, use the search box and category filters yourself, then copy the resulting URL from your browser's address bar into 'url' below -- that guarantees it matches what Craigslist actually serves today. The URLs below are reasonable starting points but Craigslist changes category codes occasionally, so verify them in a browser before relying on them.",
+
+  "watches": [
+    {
+      "name": "Property management - services offered (small biz ads)",
+      "url": "https://chicago.craigslist.org/search/bbb?query=property+management&sort=date",
+      "lead_type": "offered",
+      "keywords_include": [],
+      "keywords_exclude": ["resume", "job wanted", "seeking employment"]
+    },
+    {
+      "name": "Property maintenance - services offered (site-wide)",
+      "url": "https://chicago.craigslist.org/search/sss?query=property+maintenance&sort=date",
+      "lead_type": "offered",
+      "keywords_include": [],
+      "keywords_exclude": ["resume", "job wanted", "seeking employment"]
+    },
+    {
+      "name": "Skilled trade / handyman - services offered",
+      "url": "https://chicago.craigslist.org/search/trd?query=property+maintenance+OR+building+maintenance&sort=date",
+      "lead_type": "offered",
+      "keywords_include": [],
+      "keywords_exclude": ["resume", "job wanted"]
+    },
+    {
+      "name": "Real estate / HOA management - services offered",
+      "url": "https://chicago.craigslist.org/search/rts?query=property+management&sort=date",
+      "lead_type": "offered",
+      "keywords_include": [],
+      "keywords_exclude": []
+    },
+    {
+      "name": "People/landlords needing maintenance done (gigs)",
+      "url": "https://chicago.craigslist.org/search/ggg?query=property+maintenance&sort=date",
+      "lead_type": "wanted",
+      "keywords_include": [],
+      "keywords_exclude": []
+    }
+  ],
+
+  "max_pages_per_watch": 3,
+  "min_delay_seconds": 4,
+  "max_delay_seconds": 9,
+  "request_timeout_seconds": 20,
+  "output_csv": "data/leads.csv",
+  "seen_ids_file": "data/seen_ids.json",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36"
+}

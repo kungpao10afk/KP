@@ -92,6 +92,40 @@ shows:
 It's read-only and local-only (binds to `127.0.0.1`) — nothing here talks to
 Craigslist, it just visualizes what the scraper already collected.
 
+### Get a shareable URL (tunnel)
+
+To view the dashboard from your phone or share it with someone else, punch
+a public URL through to it with a tunnel — the dashboard itself keeps
+running locally and reading your local `data/leads.csv`; the tunnel just
+forwards traffic to it.
+
+**Set a password first.** A tunnel URL is unlisted but not secret — anyone
+who gets the link can otherwise see your leads. Pick a password and keep the
+dashboard running with it set:
+
+```bash
+export DASHBOARD_PASSWORD="something-only-you-know"   # username defaults to "admin"
+python3 dashboard.py
+```
+
+If `DASHBOARD_PASSWORD` isn't set, the dashboard prints a warning and serves
+with no login — fine for pure localhost use, not fine once it's tunneled.
+
+Then, in a second terminal, start a tunnel pointed at port 5050. **Cloudflare
+Tunnel** (free, no account needed for a quick one):
+
+```bash
+# macOS: brew install cloudflared | Linux: see developers.cloudflare.com/cloudflared
+cloudflared tunnel --url http://127.0.0.1:5050
+```
+
+It prints a `https://<random-words>.trycloudflare.com` URL — that's what you
+share. **ngrok** is an equivalent alternative (`ngrok http 5050`).
+
+Both the dashboard and the tunnel need to keep running for the URL to work —
+close either one and the link goes dead. There's nothing to undo: just stop
+both processes (`Ctrl+C`) when you're done sharing it.
+
 ## How it works
 
 Craigslist search pages embed a stable `<script id="ld_searchpage_results"

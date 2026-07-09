@@ -50,6 +50,26 @@ safe to run on a schedule.
 Every 4 hours is plenty for a single city/keyword set — see the rate-limiting
 note below.
 
+## Dashboard
+
+```bash
+python3 dashboard.py
+```
+
+Then open `http://127.0.0.1:5050`. It's a small local Flask app that reads
+`data/leads.csv` on every request (so it always reflects your latest scraper
+run — just hit "Refresh" in the browser after a run, no restart needed) and
+shows:
+
+- Stat tiles: total leads, new in the last 7 days, offered vs. wanted counts.
+- A leads-per-day chart (last 14 days) and a leads-by-search breakdown, both
+  split by lead type.
+- A sortable, filterable table (type, search, date range, title text) with
+  a direct link to each Craigslist post.
+
+It's read-only and local-only (binds to `127.0.0.1`) — nothing here talks to
+Craigslist, it just visualizes what the scraper already collected.
+
 ## How it works
 
 Craigslist search pages embed a stable `<script id="ld_searchpage_results"
@@ -86,6 +106,7 @@ keeps this on the right side of Craigslist's rules.
 ## Files
 
 - `craigslist_lead_scraper.py` — the scraper.
+- `dashboard.py` + `templates/dashboard.html` — the local dashboard.
 - `config.example.json` — template config; copy to `config.json` (gitignored)
   and edit.
 - `data/leads.csv`, `data/seen_ids.json` — generated output/state

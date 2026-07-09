@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Craigslist Lead Dashboard</title>
+<style>
+  :root {
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-offered: #2a78d6;
+    --series-wanted:  #1baf7a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-offered: #3987e5;
+      --series-wanted:  #199e70;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 20px 64px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 13px; margin: 0; }
+  .meta-row { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-muted); }
+  button.refresh {
+    font: inherit; font-size: 13px; padding: 7px 14px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary);
+    cursor: pointer;
+  }
+  button.refresh:hover { border-color: var(--text-muted); }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .tile {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .tile .value { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tile .sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  .charts { display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .card {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px;
+  }
+  .card h2 { font-size: 13px; font-weight: 600; margin: 0 0 2px; }
+  .card .caption { font-size: 11px; color: var(--text-muted); margin: 0 0 12px; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .bar-label { font-size: 10px; fill: var(--text-muted); }
+  .axis-label { font-size: 10px; fill: var(--text-muted); }
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 50; display: none;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 10px; font-size: 12px; color: var(--text-primary);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  }
+
+  .filters {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+    margin-bottom: 12px; padding: 10px 12px; background: var(--surface-1);
+    border: 1px solid var(--border); border-radius: 12px;
+  }
+  .filters select, .filters input[type="text"] {
+    font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--page); color: var(--text-primary);
+  }
+  .filters input[type="text"] { min-width: 220px; }
+  .filters .count { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em;
+    color: var(--text-muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--baseline);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  thead th:hover { color: var(--text-primary); }
+  thead th .arrow { opacity: 0.5; font-size: 10px; margin-left: 3px; }
+  tbody td { padding: 9px 10px; border-bottom: 1px solid var(--gridline); vertical-align: top; }
+  tbody tr:hover { background: color-mix(in srgb, var(--text-primary) 4%, transparent); }
+  td.title a { color: var(--text-primary); text-decoration: none; }
+  td.title a:hover { text-decoration: underline; }
+  td.price, td.postid { font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space: nowrap; }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px;
+    font-weight: 600; color: #ffffff; white-space: nowrap;
+  }
+  .pill.offered { background: var(--series-offered); }
+  .pill.wanted  { background: var(--series-wanted); }
+  .empty { text-align: center; padding: 40px 10px; color: var(--text-muted); font-size: 13px; }
+
+  @media (max-width: 860px) {
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .charts { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Craigslist Lead Dashboard</h1>
+      <p class="subtitle">Property maintenance &amp; management &middot; Chicago</p>
+    </div>
+    <div class="meta-row">
+      <span id="lastUpdated">&mdash;</span>
+      <button class="refresh" id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <div class="tiles">
+    <div class="tile"><div class="label">Total leads</div><div class="value" id="tileTotal">&ndash;</div><div class="sub">all time</div></div>
+    <div class="tile"><div class="label">New, last 7 days</div><div class="value" id="tileNew7">&ndash;</div><div class="sub" id="tileNew7Sub">&nbsp;</div></div>
+    <div class="tile"><div class="label">Offered</div><div class="value" id="tileOffered">&ndash;</div><div class="sub">services offered (competitors / subs)</div></div>
+    <div class="tile"><div class="label">Wanted</div><div class="value" id="tileWanted">&ndash;</div><div class="sub">people needing work done</div></div>
+  </div>
+
+  <div class="charts">
+    <div class="card">
+      <h2>Leads per day</h2>
+      <p class="caption">Last 14 days, stacked by lead type</p>
+      <div class="legend">
+        <span><span class="swatch" style="background:var(--series-offered)"></span>Offered</span>
+        <span><span class="swatch" style="background:var(--series-wanted)"></span>Wanted</span>
+      </div>
+      <svg id="chartDaily" width="100%" height="200" viewBox="0 0 560 200" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="card">
+      <h2>Leads by search</h2>
+      <p class="caption">Which configured watch found them</p>
+      <svg id="chartBySearch" width="100%" height="200" viewBox="0 0 480 200" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </div>
+
+  <div class="filters">
+    <select id="filterType">
+      <option value="all">All types</option>
+      <option value="offered">Offered</option>
+      <option value="wanted">Wanted</option>
+    </select>
+    <select id="filterSearch"><option value="all">All searches</option></select>
+    <select id="filterDate">
+      <option value="all">All time</option>
+      <option value="7">Last 7 days</option>
+      <option value="30">Last 30 days</option>
+    </select>
+    <input type="text" id="filterText" placeholder="Search title…">
+    <span class="count" id="resultCount"></span>
+  </div>
+
+  <div class="card" style="padding: 0; overflow-x: auto;">
+    <table id="leadsTable">
+      <thead>
+        <tr>
+          <th data-key="date_scraped">Scraped<span class="arrow"></span></th>
+          <th data-key="post_date">Posted<span class="arrow"></span></th>
+          <th data-key="lead_type">Type<span class="arrow"></span></th>
+          <th data-key="search_name">Search<span class="arrow"></span></th>
+          <th data-key="title">Title<span class="arrow"></span></th>
+          <th data-key="price">Price<span class="arrow"></span></th>
+          <th data-key="location">Location<span class="arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty" id="emptyState" style="display:none;">
+      No leads yet. Run <code>python3 craigslist_lead_scraper.py</code> to populate data/leads.csv.
+    </div>
+  </div>
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+let allLeads = [];
+let sortKey = "date_scraped";
+let sortDir = -1;
+const tooltip = document.getElementById("tooltip");
+
+function fmtDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function dayKey(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function showTooltip(evt, html) {
+  tooltip.innerHTML = html;
+  tooltip.style.display = "block";
+  tooltip.style.left = (evt.clientX + 12) + "px";
+  tooltip.style.top = (evt.clientY + 12) + "px";
+}
+function hideTooltip() { tooltip.style.display = "none"; }
+
+function renderStatTiles(leads) {
+  const total = leads.length;
+  const offered = leads.filter(l => l.lead_type === "offered").length;
+  const wanted = leads.filter(l => l.lead_type === "wanted").length;
+  const cutoff = Date.now() - 7 * 86400000;
+  const new7 = leads.filter(l => {
+    const d = new Date(l.date_scraped);
+    return !isNaN(d) && d.getTime() >= cutoff;
+  }).length;
+
+  document.getElementById("tileTotal").textContent = total.toLocaleString();
+  document.getElementById("tileNew7").textContent = new7.toLocaleString();
+  document.getElementById("tileOffered").textContent = offered.toLocaleString();
+  document.getElementById("tileWanted").textContent = wanted.toLocaleString();
+  document.getElementById("tileNew7Sub").textContent = total ? Math.round(100 * new7 / total) + "% of all leads" : " ";
+}
+
+function renderDailyChart(leads) {
+  const svg = document.getElementById("chartDaily");
+  svg.innerHTML = "";
+  const days = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  const counts = {};
+  days.forEach(d => counts[d] = { offered: 0, wanted: 0 });
+  leads.forEach(l => {
+    const k = dayKey(l.date_scraped);
+    if (k && counts[k]) counts[k][l.lead_type === "wanted" ? "wanted" : "offered"]++;
+  });
+
+  const W = 560, H = 200, padL = 28, padB = 24, padT = 10, padR = 6;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxVal = Math.max(1, ...days.map(d => counts[d].offered + counts[d].wanted));
+  const bw = plotW / days.length;
+  const barW = Math.min(20, bw * 0.55);
+
+  const ns = "http://www.w3.org/2000/svg";
+  const baseline = document.createElementNS(ns, "line");
+  baseline.setAttribute("x1", padL); baseline.setAttribute("x2", W - padR);
+  baseline.setAttribute("y1", H - padB); baseline.setAttribute("y2", H - padB);
+  baseline.setAttribute("stroke", "var(--baseline)"); baseline.setAttribute("stroke-width", "1");
+  svg.appendChild(baseline);
+
+  days.forEach((d, i) => {
+    const cx = padL + bw * i + bw / 2;
+    const off = counts[d].offered, wan = counts[d].wanted;
+    const offH = (off / maxVal) * plotH;
+    const wanH = (wan / maxVal) * plotH;
+
+    if (off > 0) {
+      const r1 = document.createElementNS(ns, "rect");
+      r1.setAttribute("x", cx - barW / 2);
+      r1.setAttribute("y", H - padB - offH);
+      r1.setAttribute("width", barW);
+      r1.setAttribute("height", offH);
+      r1.setAttribute("rx", 3);
+      r1.setAttribute("fill", "var(--series-offered)");
+      r1.addEventListener("mousemove", e => showTooltip(e, `<b>${d}</b><br>Offered: ${off}`));
+      r1.addEventListener("mouseleave", hideTooltip);
+      svg.appendChild(r1);
+    }
+    if (wan > 0) {
+      const r2 = document.createElementNS(ns, "rect");
+      r2.setAttribute("x", cx - barW / 2);
+      r2.setAttribute("y", H - padB - offH - wanH - (off > 0 ? 2 : 0));
+      r2.setAttribute("width", barW);
+      r2.setAttribute("height", wanH);
+      r2.setAttribute("rx", 3);
+      r2.setAttribute("fill", "var(--series-wanted)");
+      r2.addEventListener("mousemove", e => showTooltip(e, `<b>${d}</b><br>Wanted: ${wan}`));
+      r2.addEventListener("mouseleave", hideTooltip);
+      svg.appendChild(r2);
+    }
+    if (i % 2 === 0) {
+      const t = document.createElementNS(ns, "text");
+      t.setAttribute("x", cx); t.setAttribute("y", H - 6);
+      t.setAttribute("text-anchor", "middle"); t.setAttribute("class", "axis-label");
+      t.textContent = d.slice(5);
+      svg.appendChild(t);
+    }
+  });
+}
+
+function renderBySearchChart(leads) {
+  const svg = document.getElementById("chartBySearch");
+  svg.innerHTML = "";
+  const bySearch = {};
+  leads.forEach(l => {
+    const name = l.search_name || "(unknown)";
+    if (!bySearch[name]) bySearch[name] = { offered: 0, wanted: 0 };
+    bySearch[name][l.lead_type === "wanted" ? "wanted" : "offered"]++;
+  });
+  const names = Object.keys(bySearch).sort((a, b) => {
+    const ta = bySearch[a].offered + bySearch[a].wanted;
+    const tb = bySearch[b].offered + bySearch[b].wanted;
+    return tb - ta;
+  }).slice(0, 6);
+
+  const W = 480, H = 200, padL = 10, padR = 40, rowH = names.length ? Math.min(28, (H - 10) / names.length) : 28;
+  const labelW = 150, plotW = W - labelW - padR;
+  const maxVal = Math.max(1, ...names.map(n => bySearch[n].offered + bySearch[n].wanted));
+  const ns = "http://www.w3.org/2000/svg";
+
+  if (!names.length) {
+    const t = document.createElementNS(ns, "text");
+    t.setAttribute("x", W / 2); t.setAttribute("y", H / 2);
+    t.setAttribute("text-anchor", "middle"); t.setAttribute("class", "axis-label");
+    t.textContent = "No data yet";
+    svg.appendChild(t);
+    return;
+  }
+
+  names.forEach((name, i) => {
+    const y = 10 + i * rowH;
+    const off = bySearch[name].offered, wan = bySearch[name].wanted;
+    const offW = (off / maxVal) * plotW;
+    const wanW = (wan / maxVal) * plotW;
+    const barH = Math.min(14, rowH * 0.55);
+
+    const label = document.createElementNS(ns, "text");
+    label.setAttribute("x", labelW - 8); label.setAttribute("y", y + barH);
+    label.setAttribute("text-anchor", "end"); label.setAttribute("class", "bar-label");
+    const shortName = name.length > 26 ? name.slice(0, 25) + "…" : name;
+    label.textContent = shortName;
+    svg.appendChild(label);
+
+    if (off > 0) {
+      const r1 = document.createElementNS(ns, "rect");
+      r1.setAttribute("x", labelW); r1.setAttribute("y", y);
+      r1.setAttribute("width", offW); r1.setAttribute("height", barH);
+      r1.setAttribute("rx", 3); r1.setAttribute("fill", "var(--series-offered)");
+      r1.addEventListener("mousemove", e => showTooltip(e, `<b>${name}</b><br>Offered: ${off}`));
+      r1.addEventListener("mouseleave", hideTooltip);
+      svg.appendChild(r1);
+    }
+    if (wan > 0) {
+      const r2 = document.createElementNS(ns, "rect");
+      r2.setAttribute("x", labelW + offW + (off > 0 ? 2 : 0)); r2.setAttribute("y", y);
+      r2.setAttribute("width", wanW); r2.setAttribute("height", barH);
+      r2.setAttribute("rx", 3); r2.setAttribute("fill", "var(--series-wanted)");
+      r2.addEventListener("mousemove", e => showTooltip(e, `<b>${name}</b><br>Wanted: ${wan}`));
+      r2.addEventListener("mouseleave", hideTooltip);
+      svg.appendChild(r2);
+    }
+
+    const total = document.createElementNS(ns, "text");
+    total.setAttribute("x", labelW + offW + wanW + 6); total.setAttribute("y", y + barH);
+    total.setAttribute("class", "bar-label");
+    total.textContent = off + wan;
+    svg.appendChild(total);
+  });
+}
+
+function populateSearchFilter(leads) {
+  const sel = document.getElementById("filterSearch");
+  const current = sel.value;
+  const names = [...new Set(leads.map(l => l.search_name).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="all">All searches</option>' +
+    names.map(n => `<option value="${n.replace(/"/g, "&quot;")}">${n}</option>`).join("");
+  if (names.includes(current)) sel.value = current;
+}
+
+function applyFiltersAndRender() {
+  const type = document.getElementById("filterType").value;
+  const search = document.getElementById("filterSearch").value;
+  const dateRange = document.getElementById("filterDate").value;
+  const text = document.getElementById("filterText").value.trim().toLowerCase();
+
+  let rows = allLeads;
+  if (type !== "all") rows = rows.filter(l => l.lead_type === type);
+  if (search !== "all") rows = rows.filter(l => l.search_name === search);
+  if (text) rows = rows.filter(l => (l.title || "").toLowerCase().includes(text));
+  if (dateRange !== "all") {
+    const cutoff = Date.now() - Number(dateRange) * 86400000;
+    rows = rows.filter(l => {
+      const d = new Date(l.date_scraped);
+      return !isNaN(d) && d.getTime() >= cutoff;
+    });
+  }
+
+  rows = rows.slice().sort((a, b) => {
+    let va = a[sortKey] || "", vb = b[sortKey] || "";
+    if (sortKey === "date_scraped" || sortKey === "post_date") {
+      va = new Date(va).getTime() || 0; vb = new Date(vb).getTime() || 0;
+    } else if (sortKey === "price") {
+      va = parseFloat((va + "").replace(/[^0-9.]/g, "")) || 0;
+      vb = parseFloat((vb + "").replace(/[^0-9.]/g, "")) || 0;
+    } else {
+      va = (va + "").toLowerCase(); vb = (vb + "").toLowerCase();
+    }
+    if (va < vb) return -1 * sortDir;
+    if (va > vb) return 1 * sortDir;
+    return 0;
+  });
+
+  document.getElementById("resultCount").textContent = `${rows.length} of ${allLeads.length} leads`;
+
+  const tbody = document.getElementById("tableBody");
+  const emptyState = document.getElementById("emptyState");
+  tbody.innerHTML = "";
+  if (!rows.length) {
+    emptyState.style.display = allLeads.length ? "block" : "block";
+    emptyState.textContent = allLeads.length ? "No leads match these filters." :
+      "No leads yet. Run python3 craigslist_lead_scraper.py to populate data/leads.csv.";
+    return;
+  }
+  emptyState.style.display = "none";
+
+  rows.forEach(l => {
+    const tr = document.createElement("tr");
+    const pillClass = l.lead_type === "wanted" ? "wanted" : "offered";
+    const pillText = l.lead_type === "wanted" ? "WANTED" : "OFFERED";
+    tr.innerHTML = `
+      <td>${fmtDate(l.date_scraped)}</td>
+      <td>${fmtDate(l.post_date)}</td>
+      <td><span class="pill ${pillClass}">${pillText}</span></td>
+      <td>${l.search_name || ""}</td>
+      <td class="title"><a href="${l.url}" target="_blank" rel="noopener">${l.title || l.url}</a></td>
+      <td class="price">${l.price ? "$" + l.price : ""}</td>
+      <td>${l.location || ""}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function updateSortArrows() {
+  document.querySelectorAll("#leadsTable thead th").forEach(th => {
+    const arrow = th.querySelector(".arrow");
+    if (th.dataset.key === sortKey) arrow.textContent = sortDir === 1 ? "▲" : "▼";
+    else arrow.textContent = "";
+  });
+}
+
+document.querySelectorAll("#leadsTable thead th").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    if (sortKey === key) sortDir *= -1;
+    else { sortKey = key; sortDir = key === "date_scraped" || key === "post_date" ? -1 : 1; }
+    updateSortArrows();
+    applyFiltersAndRender();
+  });
+});
+
+["filterType", "filterSearch", "filterDate"].forEach(id =>
+  document.getElementById(id).addEventListener("change", applyFiltersAndRender)
+);
+document.getElementById("filterText").addEventListener("input", applyFiltersAndRender);
+
+async function loadData() {
+  const res = await fetch("/api/leads");
+  allLeads = await res.json();
+  document.getElementById("lastUpdated").textContent = "Updated " + new Date().toLocaleTimeString();
+  renderStatTiles(allLeads);
+  renderDailyChart(allLeads);
+  renderBySearchChart(allLeads);
+  populateSearchFilter(allLeads);
+  updateSortArrows();
+  applyFiltersAndRender();
+}
+
+document.getElementById("refreshBtn").addEventListener("click", loadData);
+loadData();
+</script>
+</body>
+</html>

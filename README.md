@@ -43,12 +43,34 @@ safe to run on a schedule.
 
 ### Run on a schedule
 
+This has to run somewhere with real internet access to craigslist.org — a
+personal computer or a server you control, not a sandboxed remote/CI
+environment (those commonly block outbound requests to sites like Craigslist
+at the network-policy level).
+
+**macOS / Linux (cron)** — `crontab -e`, then add:
+
 ```cron
-0 */4 * * * cd /path/to/KP && /usr/bin/python3 craigslist_lead_scraper.py >> run.log 2>&1
+7 0,6,8,10,12,14,16,18,20,22 * * * cd /path/to/KP && /usr/bin/python3 craigslist_lead_scraper.py >> run.log 2>&1
 ```
 
-Every 4 hours is plenty for a single city/keyword set — see the rate-limiting
-note below.
+That's 10 runs/day, spaced ~2 hours apart, with a longer gap overnight
+(midnight–6am) since fewer new ads get posted then. Adjust the hour list if
+you'd rather spread evenly across all 24 hours instead. The `:07` minute
+offset just avoids piling on at the top of the hour with everyone else's
+cron jobs.
+
+**Windows (Task Scheduler)** — create a task that triggers "Daily, repeat
+every 2 hours" and runs:
+
+```
+python3 C:\path\to\KP\craigslist_lead_scraper.py
+```
+
+(set "Start in" to the `KP` folder so `config.json` and `data/` resolve
+correctly).
+
+See the rate-limiting note below before going faster than this.
 
 ## Dashboard
 
@@ -95,11 +117,15 @@ about it:
   early once a page returns nothing new.
 - On a `403` it stops the whole run immediately with a clear message rather
   than retrying — that's Craigslist telling you to back off. If you see this
-  repeatedly, space out your runs further (once every several hours, not
-  every few minutes).
+  repeatedly, dial the schedule back (fewer runs/day, or fewer watches) —
+  don't retry in a tighter loop.
 
-Keep it to a handful of watches and a few runs a day, and use the leads for
-direct, individual outreach — not bulk/automated messaging, and not
+10 runs/day with a handful of watches (the default config has 5) works out
+to roughly 50-150 requests/day depending on how many pages each watch
+returns — well within "occasional personal use" territory. If you add a lot
+more watches, drop the run frequency to compensate rather than stacking
+both. Use the leads for direct, individual outreach — not bulk/automated
+messaging, and not
 republishing the listings elsewhere. That's both good practice and what
 keeps this on the right side of Craigslist's rules.
 
